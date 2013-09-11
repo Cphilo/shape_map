@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Map</title>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <style>
+        html, body{
+            margin: 0;
+            padding: 0;
+            height: 100%;
+        }
+        .thumbnail_map{
+            margin:0 auto;
+            width:500px;
+            height: 500px;
+            padding: 0;
+        }
+        .full_map{
+            margin:0;
+            height: 100%;
+            padding: 0;
+            posotion: relative;
+        }
+        form {
+            margin-top: 100px;
+            text-align: center;
+        }
+    </style>
+    <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
+    <script src=" {{ url_for('static', filename='imageProcessing.js') }}"></script>
+    <script>
+        var overlay;
+        var myLatlng = new google.maps.LatLng(39.9139, 116.3917);
+        var points = new Array();
+        points.push(new google.maps.LatLng(30, 105));
+        points.push(new google.maps.LatLng(40, 105));
+        points.push(new google.maps.LatLng(30, 120));
+        points.push(new google.maps.LatLng(40, 120));
+        points.push(new google.maps.LatLng(35, 112.5));
+        function initialize() {
+            var mapOptions = {
+                zoom: 8,
+                center: myLatlng,
+                mapTypeId: google.maps.MapTypeId.SATELLITE
+            };
+            var map = new google.maps.Map(document.getElementById('map-canvas'),
+                    mapOptions);
+            {% if full_screen %}
+                var swBound = new google.maps.LatLng(30, 105);
+                var neBound = new google.maps.LatLng(40, 120);
+                var bounds = new google.maps.LatLngBounds(swBound, neBound);
+                var srcImage = '{{ url_for('static', filename="img/%s"%filename) }}';
+                for (var i in points) {
+                    var marker = new google.maps.Marker({
+                        position: points[i],
+                        map: map, // handle of the map
+                        draggable:true
+                    });
+                    marker.set('order', i);
+                    google.maps.event.addListener(
+                            marker,
+                            'drag',
+                            function() {
+                                var order = this.get('order');
+                                overlay.update(map, order, this.position);
+                            }
+                    );
+                }
+                overlay = new USGSOverlay(bounds, srcImage, map);
+            {% endif %}
+        }
+
+        function USGSOverlay(bounds, image, map) {
+
+            // Now initialize all properties.
+            this.bounds_ = bounds;
+            this.image_ = image;
+            this.map_ = map;
+
+            this.div_ = null;
+            this.setMap(map);
+        }
+        USGSOverlay.prototype = new google.maps.OverlayView();
+        USGSOverlay.prototype.onAdd = function() {
+            // Create the DIV and set some basic attributes.
+            var div = document.createElement('div');
+            div.style.border = "none";
+            div.style.borderWidth = "0px";
+            div.style.position = "absolute";
+
+            var canvas = document.createElement("canvas");
+            var ctx = canvas.getContext('2d');
+            var img = new Image();
+            img.onload = function() {
+                ctx.drawImage(img, 0, 0);
+            }
+            img.src = this.image_;
+            canvas.style.width ='100%';
+            canvas.style.height='100%';
+            div.appendChild(canvas);
+
+            this.div_ = div;
+
+            var panes = this.getPanes();
+            panes.overlayLayer.appendChild(div);
+        };
+        USGSOverlay.prototype.draw = function() {
+            var overlayProjection = this.getProjection();
+            var sw = overlayProjection.fromLatLngToDivPixel(this.bounds_.getSouthWest());
+            var ne = overlayProjection.fromLatLngToDivPixel(this.bounds_.getNorthEast());
+
+            var div = this.div_;
+            div.style.left = sw.x + 'px';
+            div.style.top = ne.y + 'px';
+            div.style.width = (ne.x - sw.x) + 'px';
+            div.style.height = (sw.y - ne.y) + 'px';
+        };
+        USGSOverlay.prototype.onRemove = function() {
+            this.div_.parentNode.removeChild(this.div_);
+            this.div_ = null;
+        };
+        USGSOverlay.prototype.update = function(map, i, position) {
+            var overlayProjection = this.getProjection();
+            var sw = overlayProjection.fromLatLngToDivPixel(this.bounds_.getSouthWest());
+            var ne = overlayProjection.fromLatLngToDivPixel(this.bounds_.getNorthEast());
+            var newOrigin = overlayProjection.fromLatLngToDivPixel(position);
+            var srcPoints = new Array();
+            srcPoints.push(new Array(sw.x, sw.y));
+            srcPoints.push(new Array(ne.x, sw.y));
+            srcPoints.push(new Array(sw.x, ne.y));
+            srcPoints.push(new Array(ne.x, ne.y));
+            if(parseInt(i) === 4) {
+                var div = this.div_;
+                div.style.left = (sw.x + newOrigin.x - (sw.x + ne.x) / 2) + 'px';
+                div.style.top = (ne.y + newOrigin.y - (sw.y + ne.y) / 2) + 'px';
+                div.style.width = (ne.x - sw.x) + 'px';
+                div.style.height = (sw.y - ne.y) + 'px';
+            } else{
+                var destPoints = new Array();
+                if(parseInt(i) === 3) {
+                    destPoints.push(new Array(sw.x, sw.y));
+                    destPoints.push(new Array(ne.x, sw.y));
+                    destPoints.push(new Array(sw.x, ne.y));
+                    destPoints.push(new Array(newOrigin.x, newOrigin.y));
+                } else if(parseInt(i) === 2) {
+                    destPoints.push(new Array(sw.x, sw.y));
+                    destPoints.push(new Array(ne.x, sw.y));
+                    destPoints.push(new Array(newOrigin.x, newOrigin.y));
+                    destPoints.push(new Array(ne.x, ne.y));
+                } else if(parseInt(i) === 1) {
+                    destPoints.push(new Array(sw.x, sw.y));
+                    destPoints.push(new Array(newOrigin.x, newOrigin.y));
+                    destPoints.push(new Array(sw.x, ne.y));
+                    destPoints.push(new Array(ne.x, ne.y));
+                } else if(parseInt(i) === 0) {
+                    destPoints.push(new Array(newOrigin.x, newOrigin.y));
+                    destPoints.push(new Array(ne.x, sw.y));
+                    destPoints.push(new Array(sw.x, ne.y));
+                    destPoints.push(new Array(ne.x, ne.y));
+                }
+                var transMat = perspective_4point_transform(srcPoints[0][0], srcPoints[0][1],
+                    destPoints[0][0], destPoints[0][1], srcPoints[1][0], srcPoints[1][0],
+                    destPoints[1][0], destPoints[1][1], srcPoints[2][0], srcPoints[2][1],
+                    destPoints[2][0], destPoints[2][1], srcPoints[3][0], srcPoints[3][1],
+                    destPoints[3][0], destPoints[3][1]
+                );
+                var div = this.div_;
+                var canvas = div.children('canvas');
+                var tmpCtx = canvas.getContext('2d');
+                var imageData = tmpCtx.getImageData(0, 0, canvas.width, canvas.height);
+                var newPixels = warp_perspective(imageData.data,  );
+                tmpCtx.putImageData(newPixels, 0, 0);
+            }
+        };
+        google.maps.event.addDomListener(window, 'load', initialize);
+    </script>
+
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js" ></script>
+</head>
+<body>
+{% if full_screen %}
+    <div id="map-canvas" class='full_map'></div>
+{% else %}
+    <form action="/" method="POST" enctype="multipart/form-data">
+        <input type='file' name='file'>
+        <input type='submit' value='upload'>
+    </form>
+    <div id="map-canvas" class='thumbnail_map'></div>
+{% endif %}
+</body>
+</html>
+

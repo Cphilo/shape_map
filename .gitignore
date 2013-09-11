@@ -1,0 +1,10 @@
+*.pyc
+env/
+.DS_Store
+*/media/
+build_binary/
+build/
+.idea/
+secrets.py
+*~
+*.bk
