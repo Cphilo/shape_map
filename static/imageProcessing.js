@@ -118,9 +118,40 @@ var perspective_4point_transform = function(src_x0, src_y0, dst_x0, dst_y0,
     return mat;
 }
 
+var invert_3x3 = function(from, to) {
+    var A = from, invA = to;
+    var t1 = A[4];
+    var t2 = A[8];
+    var t4 = A[5];
+    var t5 = A[7];
+    var t8 = A[0];
+
+    var t9 = t8*t1;
+    var t11 = t8*t4;
+    var t13 = A[3];
+    var t14 = A[1];
+    var t15 = t13*t14;
+    var t17 = A[2];
+    var t18 = t13*t17;
+    var t20 = A[6];
+    var t21 = t20*t14;
+    var t23 = t20*t17;
+    var t26 = 1.0/(t9*t2-t11*t5-t15*t2+t18*t5+t21*t4-t23*t1);
+    invA[0] = (t1*t2-t4*t5)*t26;
+    invA[1] = -(t14*t2-t17*t5)*t26;
+    invA[2] = -(-t14*t4+t17*t1)*t26;
+    invA[3] = -(t13*t2-t4*t20)*t26;
+    invA[4] = (t8*t2-t23)*t26;
+    invA[5] = -(t11-t18)*t26;
+    invA[6] = -(-t13*t5+t1*t20)*t26;
+    invA[7] = -(t8*t5-t21)*t26;
+    invA[8] = (t9-t15)*t26;
+}
+
 var warp_perspective = function(src, dst, transform, fill_value) {
     if (typeof fill_value === "undefined") { fill_value = 0; }
-    var src_width=src.cols|0, src_height=src.rows|0, dst_width=dst.cols|0, dst_height=dst.rows|0;
+//    var src_width=src.cols|0, src_height=src.rows|0, dst_width=dst.cols|0, dst_height=dst.rows|0;
+    var src_width=src.width|0, src_height=src.height|0, dst_width=dst.width|0, dst_height=dst.height|0;
     var src_d=src.data, dst_d=dst.data;
     var x=0,y=0,off=0,ixs=0,iys=0,xs=0.0,ys=0.0,xs0=0.0,ys0=0.0,ws=0.0,sc=0.0,a=0.0,b=0.0,p0=0.0,p1=0.0;
     var td=transform;
@@ -151,3 +182,4 @@ var warp_perspective = function(src, dst, transform, fill_value) {
         }
     }
 }
+

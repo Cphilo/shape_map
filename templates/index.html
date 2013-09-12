@@ -165,12 +165,14 @@
                     destPoints[2][0], destPoints[2][1], srcPoints[3][0], srcPoints[3][1],
                     destPoints[3][0], destPoints[3][1]
                 );
+                invert_3x3(transMat, transMat);
                 var div = this.div_;
-                var canvas = div.children('canvas');
+                var canvas = div.children[0];
                 var tmpCtx = canvas.getContext('2d');
-                var imageData = tmpCtx.getImageData(0, 0, canvas.width, canvas.height);
-                var newPixels = warp_perspective(imageData.data,  );
-                tmpCtx.putImageData(newPixels, 0, 0);
+                var src = tmpCtx.getImageData(0, 0, canvas.width, canvas.height);
+                var dst = tmpCtx.createImageData(canvas.width, canvas.height);
+                warp_perspective(src, dst, transMat, 0);
+                tmpCtx.putImageData(dst, 0, 0);
             }
         };
         google.maps.event.addDomListener(window, 'load', initialize);
