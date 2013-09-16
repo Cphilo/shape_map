@@ -80,7 +80,7 @@
             this.map_ = map;
 
             this.canvas_ = null;
-            this.imageData_ = null;
+            this.imgData_ = null;
             this.setMap(map);
         }
         USGSOverlay.prototype = new google.maps.OverlayView();
@@ -92,7 +92,7 @@
             var node = this;
             img.onload = function() {
                 ctx.drawImage(img, 0, 0);
-                node.imageData_ = ctx.getImageData(0, 0, 640, 480);
+                node.imgData_ = ctx.getImageData(0, 0, img.width, img.height);
             }
             img.src = this.image_;
             console.log(img);
@@ -133,7 +133,9 @@
             var ctx = canvas.getContext('2d');
 
 {#            var imageData = ctx.getImageData(0, 0, w, h);#}
-            var imageData = this.imageData_;
+            var tmpCanvas = document.createElement('canvas');
+            var tmpImage = tmpCanvas.getContext('2d').createImageData(w, h);
+            tmpImage.data.set(this.imgData_.data);
 
             var img_u8, img_u8_warp, transform;
             var srcPoints = new Array();
@@ -147,17 +149,17 @@
                 canvas.style.top = (ne.y + newOrigin.y - (sw.y + ne.y) / 2) + 'px';
                 canvas.width = ne.x - sw.x;
                 canvas.height = sw.y - ne.y;
-                ctx.putImageData(imageData, 0, 0);
+                ctx.putImageData(this.imgData_, 0, 0);
             } else{
                 var x1 = Math.min(sw.x, ne.x, newOrigin.x);
                 var x2 = Math.max(sw.x, ne.x, newOrigin.x);
                 var y1 = Math.min(sw.y, ne.y, newOrigin.y);
                 var y2 = Math.max(sw.y, ne.y, newOrigin.y);
-{##}
-{#                canvas.style.left = x1 + 'px';#}
-{#                canvas.style.top = y1 + 'px';#}
-{#                canvas.width = x2 - x1;#}
-{#                canvas.height = y2 - y1;#}
+
+                canvas.style.left = x1 + 'px';
+                canvas.style.top = y1 + 'px';
+                canvas.width = x2 - x1;
+                canvas.height = y2 - y1;
 
                 var destPoints = new Array();
                 if(parseInt(i) === 3) {
@@ -184,7 +186,7 @@
 
                 img_u8 = new jsfeat.matrix_t(w, h, jsfeat.U8_t | jsfeat.C1_t);
                 img_u8_warp = new jsfeat.matrix_t(x2-x1, y2-y1, jsfeat.U8_t| jsfeat.C1_t);
-                jsfeat.imgproc.grayscale(imageData.data, img_u8.data);
+                jsfeat.imgproc.grayscale(this.imgData_.data, img_u8.data);
                 transform = new jsfeat.matrix_t(3, 3, jsfeat.F32_t | jsfeat.C1_t);
 
                 jsfeat.math.perspective_4point_transform(transform, srcPoints[0][0], srcPoints[0][1],
@@ -197,14 +199,14 @@
                 jsfeat.matmath.invert_3x3(transform, transform);
                 jsfeat.imgproc.warp_perspective(img_u8, img_u8_warp, transform, 0);
 
-                var data_u32 = new Uint32Array(imageData.data.buffer);
+                var data_u32 = new Uint32Array(tmpImage.data.buffer);
                 var alpha = (0xff << 24);
                 var tmp = img_u8_warp.cols*img_u8_warp.rows, pix = 0;
                 while(--tmp >= 0) {
                     pix = img_u8_warp.data[tmp];
                     data_u32[tmp] = alpha | (pix << 16) | (pix << 8) | pix;
                 }
-                ctx.putImageData(imageData, 0, 0);
+                ctx.putImageData(tmpImage, 0, 0);
             }
         };
         google.maps.event.addDomListener(window, 'load', initialize);

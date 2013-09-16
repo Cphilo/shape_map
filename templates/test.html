@@ -40,16 +40,18 @@
 
             jsfeat.imgproc.warp_perspective(img_u8, img_u8_warp, transform, 0);
 
-            var obj = JSON.parse(JSON.stringify(imgData));
+            var tmpCanvas = document.createElement('canvas');
+            var tmpImage = tmpCanvas.getContext('2d').createImageData(w, h);
+            tmpImage.data.set(imgData.data);
 
-            var data_u32 = new Uint32Array(imgData.data.buffer);
+            var data_u32 = new Uint32Array(tmpImage.data.buffer);
             var alpha = (0xff << 24);
             var tmp = img_u8_warp.cols*img_u8_warp.rows, pix = 0;
             while(--tmp >= 0) {
                 pix = img_u8_warp.data[tmp];
                 data_u32[tmp] = alpha | (pix << 16) | (pix << 8) | pix;
             }
-            ctx.putImageData(imgData, 0, 0);
+            ctx.putImageData(tmpImage, 0, 0);
         }
         window.onload=initialize;
     </script>
@@ -58,6 +60,6 @@
 <div style='width:640px;height:480px;'>
 <canvas id='canvas' width='640' height='480'></canvas>
 </div>
-    <input type="button" id='change' value='Change' onclick='change()'/>
+    <input type="button" value='Change' onclick='change()'/>
 </body>
 </html>
