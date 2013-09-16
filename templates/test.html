@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test</title>
+    <script src=" {{ url_for('static', filename='jsfeat-min.js') }}"></script>
+{#    <link rel='stylesheet' href='http://inspirit.github.io/jsfeat/css/jsfeat.css'/>#}
+    <script type='text/javascript'>
+        var imgData;
+        function initialize() {
+            var canvas = document.getElementById("canvas");
+            var ctx = canvas.getContext('2d');
+            var img = new Image();
+            img.onload = function() {
+                ctx.drawImage(img, 0, 0);
+                imgData = ctx.getImageData(0, 0, 640, 480);
+            }
+            img.src = "{{ url_for('static', filename='img/wuhan.png') }}";
+        }
+        function change() {
+            var canvas = document.getElementById("canvas");
+            canvas.style.left = "100px";
+            canvas.style.top = '100px';
+            canvas.style.position = 'absolute';
+            var ctx = canvas.getContext('2d');
+            var w = 640, h = 480;
+{#            var imageData = ctx.getImageData(0, 0, w, h);#}
+
+            img_u8 = new jsfeat.matrix_t(w, h, jsfeat.U8_t | jsfeat.C1_t);
+            img_u8_warp = new jsfeat.matrix_t(w, h, jsfeat.U8_t| jsfeat.C1_t);
+            transform = new jsfeat.matrix_t(3, 3, jsfeat.F32_t | jsfeat.C1_t);
+
+{#            transform.data = new Array(0.03233400359749794, -0.5951851606369019,#}
+{#                  0, 0, 0.4532807171344757, 0, -0.0030244160443544388, -0.0017437059432268143, 1);#}
+            jsfeat.imgproc.grayscale(imgData.data, img_u8.data);
+            jsfeat.math.perspective_4point_transform(transform, 0,   0,   0,  0,
+                                                                       640, 0,   640, 0,
+                                                                       640, 480, 550, 320,
+                                                                       0,   480, 0, 480);
+            jsfeat.matmath.invert_3x3(transform, transform);
+
+            jsfeat.imgproc.warp_perspective(img_u8, img_u8_warp, transform, 0);
+
+            var obj = JSON.parse(JSON.stringify(imgData));
+
+            var data_u32 = new Uint32Array(imgData.data.buffer);
+            var alpha = (0xff << 24);
+            var tmp = img_u8_warp.cols*img_u8_warp.rows, pix = 0;
+            while(--tmp >= 0) {
+                pix = img_u8_warp.data[tmp];
+                data_u32[tmp] = alpha | (pix << 16) | (pix << 8) | pix;
+            }
+            ctx.putImageData(imgData, 0, 0);
+        }
+        window.onload=initialize;
+    </script>
+</head>
+<body>
+<div style='width:640px;height:480px;'>
+<canvas id='canvas' width='640' height='480'></canvas>
+</div>
+    <input type="button" id='change' value='Change' onclick='change()'/>
+</body>
+</html>
