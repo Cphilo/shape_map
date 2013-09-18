@@ -3,39 +3,108 @@
 <head>
     <title>Test</title>
     <script src=" {{ url_for('static', filename='jsfeat-min.js') }}"></script>
-{#    <link rel='stylesheet' href='http://inspirit.github.io/jsfeat/css/jsfeat.css'/>#}
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js" ></script>
     <script type='text/javascript'>
         var imgData;
+        var w = 640, h = 480, r = 10;
+        var mouseIsDown = 0;
+        var centerPosition = new Array();
+        var imgWidth, imgHeight;
+
+        function drawCircle(ctx, x, y, r, color) {
+            color = color || "#000000"
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, 2*Math.PI);
+            ctx.strokeStyle = color;
+            ctx.stroke();
+        }
+        function getCenter(x, y) {
+            for(var index in centerPosition) {
+                if(x >= (centerPosition[index][0] - r) &&
+                        x <= (centerPosition[index][0] + r) &&
+                        y >= (centerPosition[index][1] - r) &&
+                        y <= (centerPosition[index][1] + r)){
+                    return parseInt(index) + 1;
+                }
+            }
+            return 0;
+        }
         function initialize() {
-            var canvas = document.getElementById("canvas");
+            var canvas = document.getElementById('canvas');
+            canvas.style.left = "0px";
+            canvas.style.top = '0px';
+            canvas.style.position = 'absolute';
+
             var ctx = canvas.getContext('2d');
             var img = new Image();
             img.onload = function() {
                 ctx.drawImage(img, 0, 0);
-                imgData = ctx.getImageData(0, 0, 640, 480);
+                imgData = ctx.getImageData(0, 0, w, h);
+                drawCircle(ctx, r, r, r);
+                centerPosition.push(new Array(r, r));
+                drawCircle(ctx, img.width-r, r, r);
+                centerPosition.push(new Array(img.width-r, r));
+                drawCircle(ctx, img.width-r, img.height-r, r);
+                centerPosition.push(new Array(img.width-r, img.height-r));
+                drawCircle(ctx, r, img.height-r, r);
+                centerPosition.push(new Array(r, img.height-r));
+                drawCircle(ctx, img.width / 2, img.height / 2, r, "#FF0000");
+                centerPosition.push(new Array(img.width / 2, img.height / 2));
+
+                imgWidth = img.width;
+                imgHeight = img.height;
             }
             img.src = "{{ url_for('static', filename='img/wuhan.png') }}";
-        }
-        function change() {
-            var canvas = document.getElementById("canvas");
-            canvas.style.left = "100px";
-            canvas.style.top = '100px';
-            canvas.style.position = 'absolute';
-            var ctx = canvas.getContext('2d');
-            var w = 640, h = 480;
-{#            var imageData = ctx.getImageData(0, 0, w, h);#}
 
+            canvas.onmousemove = canvasMouseMove;
+            canvas.onmousedown = canvasMouseDown;
+            canvas.onmouseup = function() {
+                mouseIsDown = 0;
+            }
+        }
+
+        function canvasMouseDown(e) {
+            e.preventDefault();
+            var canvas = document.getElementById('canvas');
+            var x = e.pageX - parseInt(canvas.style.left.replace('px', ''));
+            var y = e.pageY - parseInt(canvas.style.top.replace('px', ''));
+            mouseIsDown = getCenter(x, y);
+            console.log(mouseIsDown);
+        }
+
+        function canvasMouseMove(e) {
+            var canvas = document.getElementById('canvas');
+            if(mouseIsDown === 0)return;
+            var lastLeft = parseInt(canvas.style.left.replace('px', ''))
+            var lastTop = parseInt(canvas.style.top.replace('px', ''))
+            var x = e.pageX - lastLeft;
+            var y = e.pageY - lastTop;
+            if(mouseIsDown === 5) {
+                canvas.style.left = (lastLeft + x - centerPosition[mouseIsDown-1][0]) + 'px';
+                canvas.style.top = (lastTop + y - centerPosition[mouseIsDown-1][1]) + 'px';
+            } else if(mouseIsDown) {
+                updateCanvas(x, y);
+            }
+            return false;
+        }
+        function updateCanvas(newX, newY) {
+            var canvas = document.getElementById('canvas');
+
+            var ctx = canvas.getContext('2d');
             img_u8 = new jsfeat.matrix_t(w, h, jsfeat.U8_t | jsfeat.C1_t);
             img_u8_warp = new jsfeat.matrix_t(w, h, jsfeat.U8_t| jsfeat.C1_t);
             transform = new jsfeat.matrix_t(3, 3, jsfeat.F32_t | jsfeat.C1_t);
 
-{#            transform.data = new Array(0.03233400359749794, -0.5951851606369019,#}
-{#                  0, 0, 0.4532807171344757, 0, -0.0030244160443544388, -0.0017437059432268143, 1);#}
             jsfeat.imgproc.grayscale(imgData.data, img_u8.data);
-            jsfeat.math.perspective_4point_transform(transform, 0,   0,   0,  0,
-                                                                       640, 0,   640, 0,
-                                                                       640, 480, 550, 320,
-                                                                       0,   480, 0, 480);
+            centerPosition[mouseIsDown-1][0] = newX;
+            centerPosition[mouseIsDown-1][1] = newY;
+            jsfeat.math.perspective_4point_transform(transform,
+                    0, 0, centerPosition[0][0]-r, centerPosition[0][1]-r,
+                    imgWidth, 0, centerPosition[1][0]+r, centerPosition[1][1]-r,
+                    imgWidth, imgHeight, centerPosition[2][0]+r, centerPosition[2][1]+r,
+                    0, imgHeight, centerPosition[3][0]-r, centerPosition[3][1]+r
+            );
+
             jsfeat.matmath.invert_3x3(transform, transform);
 
             jsfeat.imgproc.warp_perspective(img_u8, img_u8_warp, transform, 0);
@@ -52,14 +121,17 @@
                 data_u32[tmp] = alpha | (pix << 16) | (pix << 8) | pix;
             }
             ctx.putImageData(tmpImage, 0, 0);
+
+            drawCircle(ctx, centerPosition[0][0], centerPosition[0][1], r, "#0000FF");
+            drawCircle(ctx, centerPosition[1][0], centerPosition[1][1], r, "#0000FF");
+            drawCircle(ctx, centerPosition[2][0], centerPosition[2][1], r, "#0000FF");
+            drawCircle(ctx, centerPosition[3][0], centerPosition[3][1], r, "#0000FF");
+            drawCircle(ctx, centerPosition[4][0], centerPosition[4][1], r, "#FF0000");
         }
-        window.onload=initialize;
+        window.onload = initialize;
     </script>
 </head>
 <body>
-<div style='width:640px;height:480px;'>
 <canvas id='canvas' width='640' height='480'></canvas>
-</div>
-    <input type="button" value='Change' onclick='change()'/>
 </body>
 </html>
