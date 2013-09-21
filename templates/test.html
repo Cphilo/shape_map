@@ -91,11 +91,27 @@
             var canvas = document.getElementById('canvas');
 
             var ctx = canvas.getContext('2d');
-            img_u8 = new jsfeat.matrix_t(w, h, jsfeat.U8_t | jsfeat.C1_t);
-            img_u8_warp = new jsfeat.matrix_t(w, h, jsfeat.U8_t| jsfeat.C1_t);
-            transform = new jsfeat.matrix_t(3, 3, jsfeat.F32_t | jsfeat.C1_t);
+            var img_u8 = new jsfeat.matrix_t(w, h, jsfeat.U8_t | jsfeat.C1_t);
+            var img_u8_warp = new jsfeat.matrix_t(w, h, jsfeat.U8_t| jsfeat.C1_t);
+            var transform = new jsfeat.matrix_t(3, 3, jsfeat.F32_t | jsfeat.C1_t);
 
-            jsfeat.imgproc.grayscale(imgData.data, img_u8.data);
+            var alphas = new jsfeat.matrix_t(w, h, jsfeat.U8_t| jsfeat.C1_t);
+            var alphas_warp = new jsfeat.matrix_t(w, h, jsfeat.U8_t| jsfeat.C1_t);
+
+{#            jsfeat.imgproc.grayscale(imgData.data, img_u8.data);#}
+            function grayscale(src, dst) {
+                var srcLength = src.length|0, srcLength_16 = (srcLength - 16)|0;
+                var j = 0;
+                var coeff_r = 4899, coeff_g = 9617, coeff_b = 1868;
+
+                for (var i=0; i < srcLength; i += 4, ++j) {
+                    dst[j] = (src[i] * coeff_r + src[i+1] * coeff_g + src[i+2] * coeff_b + 8192) >> 14;
+                    alphas.data[j] = src[i+3];
+                }
+            }
+            console.log(alphas);
+            grayscale(imgData.data, img_u8.data);
+
             centerPosition[mouseIsDown-1][0] = newX;
             centerPosition[mouseIsDown-1][1] = newY;
             jsfeat.math.perspective_4point_transform(transform,
@@ -108,17 +124,17 @@
             jsfeat.matmath.invert_3x3(transform, transform);
 
             jsfeat.imgproc.warp_perspective(img_u8, img_u8_warp, transform, 0);
+            jsfeat.imgproc.warp_perspective(alphas, alphas_warp, transform, 0);
 
             var tmpCanvas = document.createElement('canvas');
             var tmpImage = tmpCanvas.getContext('2d').createImageData(w, h);
             tmpImage.data.set(imgData.data);
 
             var data_u32 = new Uint32Array(tmpImage.data.buffer);
-            var alpha = (0xff << 24);
             var tmp = img_u8_warp.cols*img_u8_warp.rows, pix = 0;
             while(--tmp >= 0) {
                 pix = img_u8_warp.data[tmp];
-                data_u32[tmp] = alpha | (pix << 16) | (pix << 8) | pix;
+                data_u32[tmp] = (alphas_warp.data[tmp]<<24) | (pix << 16) | (pix << 8) | pix;
             }
             ctx.putImageData(tmpImage, 0, 0);
 
