@@ -2,15 +2,15 @@
 <html>
 <head>
     <title>Test</title>
+    <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
     <script src=" {{ url_for('static', filename='jsfeat-min.js') }}"></script>
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js" ></script>
+    <link rel='stylesheet' href=" {{ url_for('static', filename='css/style.css') }}">
     <script type='text/javascript'>
         var imgData;
-        var w = 640, h = 480, r = 10;
+        var w = 700, h = 700, r = 10;
         var mouseIsDown = 0;
         var centerPosition = new Array();
         var imgWidth, imgHeight;
-
         function drawCircle(ctx, x, y, r, color) {
             color = color || "#000000"
             ctx.beginPath();
@@ -29,9 +29,9 @@
             }
             return 0;
         }
-        function initialize() {
+        function canvasInitialize() {
             var canvas = document.getElementById('canvas');
-            canvas.style.left = "0px";
+            canvas.style.left = "300px";
             canvas.style.top = '0px';
             canvas.style.position = 'absolute';
 
@@ -98,7 +98,7 @@
             var alphas = new jsfeat.matrix_t(w, h, jsfeat.U8_t| jsfeat.C1_t);
             var alphas_warp = new jsfeat.matrix_t(w, h, jsfeat.U8_t| jsfeat.C1_t);
 
-{#            jsfeat.imgproc.grayscale(imgData.data, img_u8.data);#}
+            {#            jsfeat.imgproc.grayscale(imgData.data, img_u8.data);#}
             function grayscale(src, dst) {
                 var srcLength = src.length|0, srcLength_16 = (srcLength - 16)|0;
                 var j = 0;
@@ -109,7 +109,6 @@
                     alphas.data[j] = src[i+3];
                 }
             }
-            console.log(alphas);
             grayscale(imgData.data, img_u8.data);
 
             centerPosition[mouseIsDown-1][0] = newX;
@@ -137,17 +136,42 @@
                 data_u32[tmp] = (alphas_warp.data[tmp]<<24) | (pix << 16) | (pix << 8) | pix;
             }
             ctx.putImageData(tmpImage, 0, 0);
-
             drawCircle(ctx, centerPosition[0][0], centerPosition[0][1], r, "#0000FF");
             drawCircle(ctx, centerPosition[1][0], centerPosition[1][1], r, "#0000FF");
             drawCircle(ctx, centerPosition[2][0], centerPosition[2][1], r, "#0000FF");
             drawCircle(ctx, centerPosition[3][0], centerPosition[3][1], r, "#0000FF");
             drawCircle(ctx, centerPosition[4][0], centerPosition[4][1], r, "#FF0000");
         }
-        window.onload = initialize;
+        {#        window.onload = initialize;#}
+    </script>
+    <script>
+        var myLatlng = new google.maps.LatLng(39.9139, 116.3917);
+        function googleMapInitialize() {
+            var mapOptions = {
+                zoom: 8,
+                center: myLatlng,
+                mapTypeId: google.maps.MapTypeId.SATELLITE
+            };
+            var map = new google.maps.Map(document.getElementById('map-canvas'),
+                    mapOptions);
+            canvasInitialize();
+        }
+        google.maps.event.addDomListener(window, 'load', googleMapInitialize);
     </script>
 </head>
 <body>
-<canvas id='canvas' width='640' height='480'></canvas>
+<div class='operateBoard'>
+    <h2>操作板</h2>
+    <div class='upload-file'>
+        <input type='file' name='file'>
+        <input type='submit' value='upload'>
+    </div>
+    <div>
+        <h4>变换矩阵</h4>
+        <input type='button' value='Save'>
+    </div>
+</div>
+<div id='map-canvas'></div>
+<canvas id='canvas' width='700' height='700'></canvas>
 </body>
 </html>
